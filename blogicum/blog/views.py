@@ -26,13 +26,12 @@ class IndexView(ListView):
     template_name = 'blog/index.html'
 
     queryset = Post.objects.select_related(
-        'location',
-        'author'
-        ).filter(
-            is_published=True,
-            category__is_published=True,
-            pub_date__lte=timezone.now(),
-        ).annotate(comment_count=Count('comments'))
+        'location', 'author'
+    ).filter(
+        is_published=True,
+        category__is_published=True,
+        pub_date__lte=timezone.now(),
+    ).annotate(comment_count=Count('comments'))
 
 
 class CategoryPostsView(IndexView):
@@ -98,12 +97,12 @@ class SuccessUrlDeteileMixin:
         )
 
 
-class ProfileUpdateView(
-            LoginRequiredMixin,
-            ProfileView,
-            SuccessUrlProfileMixin,
-            UpdateView
-        ):
+class ProfileUpdateView(LoginRequiredMixin,
+                        ProfileView,
+                        SuccessUrlProfileMixin,
+                        UpdateView
+                        ):
+
     form_class = UserUpdateForm
     template_name = 'blog/user.html'
 
@@ -122,12 +121,11 @@ class PostFormMixin(PostMixin):
         return super().form_valid(form)
 
 
-class PostCreateView(
-            LoginRequiredMixin,
-            PostFormMixin,
-            SuccessUrlProfileMixin,
-            CreateView
-        ):
+class PostCreateView(LoginRequiredMixin,
+                     PostFormMixin,
+                     SuccessUrlProfileMixin,
+                     CreateView
+                     ):
     pass
 
 
@@ -137,8 +135,8 @@ class PostUpdateView(PostFormMixin, SuccessUrlDeteileMixin, UpdateView):
     def dispatch(self, request, *args, **kwargs):
         instance = get_object_or_404(Post, pk=kwargs['post_id'])
         if (
-            not self.request.user.is_authenticated or
-            instance.author != request.user
+            not self.request.user.is_authenticated
+            or instance.author != request.user
         ):
             return redirect('blog:post_detail', pk=kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
@@ -159,9 +157,9 @@ class PostDetailView(PostMixin, DetailView):
         instance = get_object_or_404(Post, pk=kwargs['pk'])
         if instance.author != request.user:
             if (
-                not instance.is_published or
-                not instance.category.is_published or
-                instance.pub_date > timezone.now()
+                not instance.is_published
+                or not instance.category.is_published
+                or instance.pub_date > timezone.now()
             ):
                 raise Http404()
         return super().dispatch(request, *args, **kwargs)
