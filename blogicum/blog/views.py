@@ -1,7 +1,9 @@
 
+from typing import Any, Dict
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.contrib.auth.models import User
+from django.db.models.query import QuerySet
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -17,6 +19,8 @@ from django.views.generic import (
     DeleteView
 )
 
+from .querysets import post_queryset
+
 INT_PAGINATOR = 10
 
 
@@ -25,25 +29,45 @@ class IndexView(ListView):
     paginate_by = INT_PAGINATOR
     template_name = 'blog/index.html'
 
-    queryset = Post.objects.select_related(
-        'location', 'author'
-    ).filter(
-        is_published=True,
-        category__is_published=True,
-        pub_date__lte=timezone.now(),
-    ).annotate(comment_count=Count('comments'))
-
+    # queryset = Post.objects.select_related(
+    #     'location', 'author'
+    # ).filter(
+    #     is_published=True,
+    #     category__is_published=True,
+    #     pub_date__lte=timezone.now(),
+    # ).annotate(comment_count=Count('comments'))
+    queryset = post_queryset()
+    
 
 class CategoryPostsView(IndexView):
-    template = 'blog/category.html'
+    template_name = 'blog/category.html'
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Any]:
+        obj = post_queryset().filter(category__slug=self.kwargs['category_slug'])
+        return obj
+    #queryset = post_queryset()
+
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        
         category = get_object_or_404(
             Category,
             slug=self.kwargs['category_slug'],
             is_published=True
         )
-        return super().get_queryset().filter(category_id=category.id)
+        context['category'] = category
+
+        return context
+    
+
+
+    # def get_queryset(self):
+    #     category = get_object_or_404(
+    #         Category,
+    #         slug=self.kwargs['category_slug'],
+    #         is_published=True
+    #     )
+    #     return super().get_queryset().filter(category_id=category.id)
 
 
 class ProfileView(DetailView):
@@ -58,7 +82,7 @@ class ProfileView(DetailView):
         if self.request.user.is_authenticated and self.request.user == author:
             object_list = (
                 Post.objects.select_related(
-                    'category', 'location', 'author'
+                     'location', 'author'
                 ).filter(author=author).
                 order_by('-pub_date').
                 annotate(comment_count=Count('comments'))
@@ -66,7 +90,7 @@ class ProfileView(DetailView):
         else:
             object_list = (
                 Post.objects.select_related(
-                    'category', 'location', 'author'
+                     'location', 'author'
                 ).filter(author=author, pub_date__lte=timezone.now()).
                 order_by('-pub_date').
                 annotate(comment_count=Count('comments'))
