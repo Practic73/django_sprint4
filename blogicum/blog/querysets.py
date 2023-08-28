@@ -3,8 +3,7 @@ from django.db.models import Count
 from blog.models import Post
 
 POST_QS = Post.objects.select_related('location', 'author').annotate(
-                                     comment_count=Count('comments')
-                                     ).order_by('-pub_date')
+    comment_count=Count('comments')).order_by('-pub_date')
 
 POST_QS_FILTER = POST_QS.filter(is_published=True,
                                 category__is_published=True,
