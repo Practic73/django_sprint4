@@ -1,14 +1,20 @@
+from typing import Any, Optional
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
+from django.db import models
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from blog.models import Post, Category, Comment
-from blog.forms import PostForm, UserUpdateForm, CommentForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import Http404
 from django.views import generic
-from .querysets import POST_QS_FILTER, POST_QS
+
+from blog.models import Post, Category, Comment
+from blog.forms import PostForm, UserUpdateForm, CommentForm
+from blog.querysets import (POST_QS_FILTER,
+                            POST_QS,
+                            time_now,
+                            post_qs_filter_author,
+                            post_qs_filter_full)
 from blog import mixins
 
 PAGINATOR = 10
@@ -47,14 +53,12 @@ class ProfileView(generic.DetailView):
     context_object_name = 'profile'
 
     def get_context_data(self, **kwargs):
-        author = get_object_or_404(User, username=self.kwargs['username'])
+        author = self.get_object()
         if self.request.user.is_authenticated and self.request.user == author:
-            object_list = POST_QS.filter(author=author)
+            object_list = post_qs_filter_author(author)
         else:
-            object_list = POST_QS.filter(
-                author=author,
-                pub_date__lte=timezone.now()
-            )
+            object_list = post_qs_filter_full(author)
+
         context = super().get_context_data(**kwargs)
         page_num = self.request.GET.get('page')
         paginator = Paginator(object_list, PAGINATOR)
@@ -88,26 +92,23 @@ class PostUpdateView(mixins.AuthorMixin,
     pk_url_kwarg = 'post_id'
 
 
-class PostDetailView(UserPassesTestMixin,
-                     mixins.PostMixin,
+class PostDetailView(mixins.PostMixin,
                      generic.DetailView
                      ):
     template_name = 'blog/detail.html'
 
-    def test_func(self):
-        object = self.get_object()
+    def get_object(self):
+        object = super().get_object()
+
         if (object.author != self.request.user):
-            if (
-                not object.is_published
-                or not object.category.is_published
-                or object.pub_date > timezone.now()
-            ):
-                raise Http404("Публикация доступна только автору")
-        return True
+            object = get_object_or_404(POST_QS_FILTER)
+
+        return super().get_object()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
+        #context['comments'] = Comment.objects.filter(post_id=self.object.id) comments
         context['comments'] = Comment.objects.filter(post_id=self.object.id)
         return context
 

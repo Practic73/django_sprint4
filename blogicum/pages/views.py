@@ -3,7 +3,7 @@ from django.shortcuts import render
 
 
 # Вызывается из urls: views.AbutView.as_view()
-class AbutView(TemplateView):
+class AboutView(TemplateView):
     template_name = 'pages/about.html'
 
 
