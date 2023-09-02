@@ -1,18 +1,14 @@
-from typing import Any, Optional
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
-from django.db import models
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import Http404
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import generic
 
-from blog.models import Post, Category, Comment
+from blog.models import Post, Category
 from blog.forms import PostForm, UserUpdateForm, CommentForm
 from blog.querysets import (POST_QS_FILTER,
-                            POST_QS,
-                            time_now,
+                            POST_QS_COMM_COUNT,
                             post_qs_filter_author,
                             post_qs_filter_full)
 from blog import mixins
@@ -20,19 +16,25 @@ from blog import mixins
 PAGINATOR = 10
 
 
-class IndexView(generic.ListView):
-    paginate_by = PAGINATOR
+class IndexView(mixins.IndexMixin):
+    #paginate_by = PAGINATOR
     template_name = 'blog/index.html'
-    queryset = POST_QS_FILTER
+    #queryset = POST_QS_COMM_COUNT
 
 
-class CategoryPostsView(IndexView):
+class CategoryPostsView(mixins.IndexMixin):
+    #paginate_by = PAGINATOR
     template_name = 'blog/category.html'
 
     def get_queryset(self):
-        return POST_QS_FILTER.filter(
+        return super().get_queryset().filter(
             category__slug=self.kwargs['category_slug']
         )
+
+    # def get_queryset(self):
+    #     return POST_QS_COMM_COUNT.filter(
+    #         category__slug=self.kwargs['category_slug']
+    #     )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -76,6 +78,11 @@ class ProfileUpdateView(LoginRequiredMixin,
     slug_field = 'username'
     template_name = 'blog/user.html'
 
+    def get_queryset(self, *args, **kwargs):
+        return super().get_queryset(*args, **kwargs).filter(
+            username=self.request.user
+        )
+
 
 class PostCreateView(mixins.PostFormMixin,
                      mixins.SuccessUrlProfileMixin,
@@ -85,10 +92,11 @@ class PostCreateView(mixins.PostFormMixin,
 
 
 class PostUpdateView(mixins.AuthorMixin,
-                     mixins.PostFormMixin,
+                     mixins.PostMixin,
                      mixins.SuccessUrlDetaileMixin,
                      generic.UpdateView
                      ):
+    form_class = PostForm
     pk_url_kwarg = 'post_id'
 
 
@@ -99,17 +107,14 @@ class PostDetailView(mixins.PostMixin,
 
     def get_object(self):
         object = super().get_object()
-
         if (object.author != self.request.user):
-            object = get_object_or_404(POST_QS_FILTER)
-
-        return super().get_object()
+            object = get_object_or_404(POST_QS_FILTER, pk=self.kwargs['pk'])
+        return object
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
-        #context['comments'] = Comment.objects.filter(post_id=self.object.id) comments
-        context['comments'] = Comment.objects.filter(post_id=self.object.id)
+        context['comments'] = self.object.comments.all
         return context
 
 
@@ -129,22 +134,17 @@ class PostDeleteView(LoginRequiredMixin,
         return context
 
 
-class CommentCreateView(generic.detail.SingleObjectMixin,
-                        mixins.CommentMixin,
-                        generic.FormView
+class CommentCreateView(mixins.CommentMixin,
+                        generic.CreateView
                         ):
     model = Post
     form_class = CommentForm
     template_name = 'blog/add_comment.html'
     pk_url_kwarg = 'post_id'
 
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        return super().post(request, *args, **kwargs)
-
     def form_valid(self, form):
         comment = form.save(commit=False)
-        comment.post = self.object
+        comment.post = get_object_or_404(Post, pk=self.kwargs['post_id'])
         comment.author = self.request.user
         comment.save()
         return super().form_valid(form)

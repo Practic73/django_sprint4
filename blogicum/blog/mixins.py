@@ -1,8 +1,13 @@
 from django.urls import reverse
 from django.shortcuts import redirect
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views import generic
+
 from blog.models import Post, Comment
 from blog.forms import PostForm
+from blog.querysets import POST_QS_COMM_COUNT
+
+PAGINATOR = 10
 
 
 class SuccessUrlProfileMixin:
@@ -21,6 +26,12 @@ class SuccessUrlDetaileMixin:
             'blog:post_detail',
             kwargs={'pk': self.kwargs['post_id']}
         )
+
+
+class IndexMixin(generic.ListView):
+
+    paginate_by = PAGINATOR
+    queryset = POST_QS_COMM_COUNT
 
 
 class PostMixin:
