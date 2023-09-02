@@ -17,8 +17,7 @@ POST_QS_FILTER = POST_QS.filter(is_published=True,
 
 POST_QS_COMM_COUNT = POST_QS_FILTER.annotate(comment_count=Count('comments'))
 
-POST_QS_NOT_FILTER = POST_QS.annotate(
-        comment_count=Count('comments'))
+POST_QS_NOT_FILTER = POST_QS.annotate(comment_count=Count('comments'))
 
 
 def post_qs_filter_author(flag, **kwargs):

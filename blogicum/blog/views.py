@@ -35,6 +35,7 @@ class CategoryPostsView(mixins.IndexMixin):
 
 
 class ProfileView(generic.DetailView):
+    # ProfileView планирую переписать на listview, как ошибки исправлю
     model = User
     slug_url_kwarg = 'username'
     slug_field = 'username'
@@ -45,8 +46,8 @@ class ProfileView(generic.DetailView):
         author = self.get_object()
         # Flag is_authenticated and author
         flag = True
-        if (not self.request.user.is_authenticated and
-                self.request.user != author):
+        if (not self.request.user.is_authenticated
+                and self.request.user != author):
             flag = False
 
         object_list = post_qs_filter_author(flag, author=author)
