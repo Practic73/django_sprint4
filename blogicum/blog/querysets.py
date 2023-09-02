@@ -17,11 +17,11 @@ POST_QS_FILTER = POST_QS.filter(is_published=True,
 
 POST_QS_COMM_COUNT = POST_QS_FILTER.annotate(comment_count=Count('comments'))
 
-
-def post_qs_filter_author(author):
-    return POST_QS.filter(author=author).annotate(
+POST_QS_NOT_FILTER = POST_QS.annotate(
         comment_count=Count('comments'))
 
 
-def post_qs_filter_full(author):
-    return POST_QS_COMM_COUNT.filter(author=author)
+def post_qs_filter_author(flag, **kwargs):
+    if flag:
+        return POST_QS_NOT_FILTER.filter(author=kwargs['author'])
+    return POST_QS_COMM_COUNT.filter(author=kwargs['author'])

@@ -2,7 +2,6 @@ from django.views.generic import TemplateView
 from django.shortcuts import render
 
 
-# Вызывается из urls: views.AbutView.as_view()
 class AboutView(TemplateView):
     template_name = 'pages/about.html'
 

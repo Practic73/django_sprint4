@@ -7,34 +7,21 @@ from django.views import generic
 
 from blog.models import Post, Category
 from blog.forms import PostForm, UserUpdateForm, CommentForm
-from blog.querysets import (POST_QS_FILTER,
-                            POST_QS_COMM_COUNT,
-                            post_qs_filter_author,
-                            post_qs_filter_full)
+from blog.querysets import (POST_QS_FILTER, post_qs_filter_author)
 from blog import mixins
-
-PAGINATOR = 10
 
 
 class IndexView(mixins.IndexMixin):
-    #paginate_by = PAGINATOR
     template_name = 'blog/index.html'
-    #queryset = POST_QS_COMM_COUNT
 
 
 class CategoryPostsView(mixins.IndexMixin):
-    #paginate_by = PAGINATOR
     template_name = 'blog/category.html'
 
     def get_queryset(self):
         return super().get_queryset().filter(
             category__slug=self.kwargs['category_slug']
         )
-
-    # def get_queryset(self):
-    #     return POST_QS_COMM_COUNT.filter(
-    #         category__slug=self.kwargs['category_slug']
-    #     )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -56,14 +43,16 @@ class ProfileView(generic.DetailView):
 
     def get_context_data(self, **kwargs):
         author = self.get_object()
-        if self.request.user.is_authenticated and self.request.user == author:
-            object_list = post_qs_filter_author(author)
-        else:
-            object_list = post_qs_filter_full(author)
+        # Flag is_authenticated and author
+        flag = True
+        if (not self.request.user.is_authenticated and
+                self.request.user != author):
+            flag = False
 
+        object_list = post_qs_filter_author(flag, author=author)
         context = super().get_context_data(**kwargs)
         page_num = self.request.GET.get('page')
-        paginator = Paginator(object_list, PAGINATOR)
+        paginator = Paginator(object_list, mixins.PAGINATOR)
         context['page_obj'] = paginator.get_page(page_num)
         return context
 
@@ -96,7 +85,6 @@ class PostUpdateView(mixins.AuthorMixin,
                      mixins.SuccessUrlDetaileMixin,
                      generic.UpdateView
                      ):
-    form_class = PostForm
     pk_url_kwarg = 'post_id'
 
 
@@ -127,10 +115,8 @@ class PostDeleteView(LoginRequiredMixin,
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['form'] = PostForm(
-            self.request.POST or None,
-            instance=context['post']
-        )
+        context['form'] = PostForm(self.request.POST or None,
+                                   instance=context['post'])
         return context
 
 
@@ -138,25 +124,25 @@ class CommentCreateView(mixins.CommentMixin,
                         generic.CreateView
                         ):
     model = Post
-    form_class = CommentForm
     template_name = 'blog/add_comment.html'
     pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
         comment = form.save(commit=False)
-        comment.post = get_object_or_404(Post, pk=self.kwargs['post_id'])
+        comment.post = get_object_or_404(POST_QS_FILTER,
+                                         pk=self.kwargs['post_id'])
         comment.author = self.request.user
         comment.save()
         return super().form_valid(form)
 
 
-class CommentUpdateView(mixins.CommentDispathMixin,
+class CommentUpdateView(mixins.CommentIdMixin,
                         generic.UpdateView
                         ):
-    form_class = CommentForm
+    pass
 
 
-class CommentDeleteView(mixins.CommentDispathMixin,
+class CommentDeleteView(mixins.CommentIdMixin,
                         generic.DeleteView
                         ):
     pass

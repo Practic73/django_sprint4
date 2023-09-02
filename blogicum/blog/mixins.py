@@ -6,6 +6,7 @@ from django.views import generic
 from blog.models import Post, Comment
 from blog.forms import PostForm
 from blog.querysets import POST_QS_COMM_COUNT
+from blog.forms import CommentForm
 
 PAGINATOR = 10
 
@@ -35,13 +36,12 @@ class IndexMixin(generic.ListView):
 
 
 class PostMixin:
-
+    form_class = PostForm
     model = Post
     template_name = 'blog/create.html'
 
 
 class PostFormMixin(LoginRequiredMixin, PostMixin):
-    form_class = PostForm
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -50,6 +50,7 @@ class PostFormMixin(LoginRequiredMixin, PostMixin):
 
 class CommentMixin(LoginRequiredMixin, SuccessUrlDetaileMixin):
     model = Comment
+    form_class = CommentForm
     template_name = 'blog/comment.html'
 
 
@@ -69,8 +70,5 @@ class AuthorMixin(UserPassesTestMixin):
         )
 
 
-# Dispath переделан в test_func название осталось старое
-class CommentDispathMixin(AuthorMixin, CommentMixin):
-    model = Comment
-    template_name = 'blog/comment.html'
+class CommentIdMixin(AuthorMixin, CommentMixin):
     pk_url_kwarg = 'comment_id'
